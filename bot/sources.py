@@ -14,7 +14,10 @@ class Source:
 
 
 def default_sources() -> Dict[str, List[Source]]:
-    # Keep this small + RSS-first (stable). Users can override via SOURCES_JSON.
+    """
+    默认资讯源 - UX 重点配置
+    优先选择稳定、高质量的 RSS 源
+    """
     return {
         "ai": [
             Source(name="OpenAI", url="https://openai.com/blog/rss/", category="ai"),
@@ -23,41 +26,55 @@ def default_sources() -> Dict[str, List[Source]]:
             Source(name="Google AI Blog", url="https://blog.google/technology/ai/rss/", category="ai"),
         ],
         "ux": [
+            # 权威 UX 资源
             Source(name="NNg", url="https://www.nngroup.com/feed/rss/", category="ux"),
             Source(name="UX Collective", url="https://uxdesign.cc/feed", category="ux"),
             Source(name="Smashing (UX)", url="https://www.smashingmagazine.com/category/ux/feed/", category="ux"),
+            # 注意：A List Apart 的 RSS 有时不稳定，可选添加
+            # Source(name="A List Apart", url="https://alistapart.com/main/feed/", category="ux"),
         ],
         "product": [
             Source(name="Figma", url="https://www.figma.com/blog/rss/", category="product"),
             Source(name="Atlassian Design", url="https://atlassian.design/blog/feed/", category="product"),
+            # Product Hunt 没有官方 RSS，需要通过其他方式获取
+            # 可以考虑使用 Mind the Product 等替代源
+            Source(name="Mind the Product", url="https://www.mindtheproduct.com/feed/", category="product"),
         ],
     }
 
 
 def load_sources_from_env() -> Optional[Dict[str, List[Source]]]:
+    """
+    从环境变量加载自定义源
+    格式：SOURCES_JSON='{"ai": [{"name": "Source", "url": "https://..."}], ...}'
+    """
     raw = os.getenv("SOURCES_JSON")
     if not raw:
         return None
-    obj = json.loads(raw)
-    out: Dict[str, List[Source]] = {}
-    for category, items in obj.items():
-        out[str(category)] = [
-            Source(
-                name=str(it.get("name", "Unnamed")),
-                url=str(it["url"]),
-                category=str(category),
-            )
-            for it in (items or [])
-            if isinstance(it, dict) and it.get("url")
-        ]
-    return out
+    try:
+        obj = json.loads(raw)
+        out: Dict[str, List[Source]] = {}
+        for category, items in obj.items():
+            out[str(category)] = [
+                Source(
+                    name=str(it.get("name", "Unnamed")),
+                    url=str(it["url"]),
+                    category=str(category),
+                )
+                for it in (items or [])
+                if isinstance(it, dict) and it.get("url")
+            ]
+        return out
+    except Exception as e:
+        print(f"⚠️ 解析 SOURCES_JSON 失败: {e}")
+        return None
 
 
 def get_sources() -> List[Source]:
+    """获取所有资讯源（环境变量优先，否则使用默认）"""
     by_cat = load_sources_from_env() or default_sources()
     sources: List[Source] = []
     for cat, items in by_cat.items():
         for s in items:
             sources.append(Source(name=s.name, url=s.url, category=cat))
     return sources
-
