@@ -31,7 +31,7 @@ def _parse_dt(entry) -> datetime:
 def fetch_items(sources: Iterable[Source], timeout: int = 20) -> List[Item]:
     items: List[Item] = []
     for src in sources:
-        feed = feedparser.parse(src.url, request_headers={"User-Agent": "aixux-digest-bot/1.0"}, timeout=timeout)
+        feed = feedparser.parse(src.url, request_headers={"User-Agent": "aixux-digest-bot/1.0"})
         for e in feed.entries or []:
             title = (getattr(e, "title", "") or "").strip()
             link = (getattr(e, "link", "") or "").strip()
