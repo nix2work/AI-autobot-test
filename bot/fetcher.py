@@ -28,7 +28,7 @@ def _parse_dt(entry) -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
-def fetch_items(sources: Iterable[Source], timeout: int = 20) -> List[Item]:
+def fetch_items(sources: Iterable[Source]) -> List[Item]:
     items: List[Item] = []
     for src in sources:
         feed = feedparser.parse(src.url, request_headers={"User-Agent": "aixux-digest-bot/1.0"})
