@@ -2,7 +2,7 @@ name: AIxUX Digest to Feishu
 
 on:
   schedule:
-    # 每天 UTC 01:00 = 北京时间 09:00
+    # 每天 UTC 01:00 = 北京时间 09:00 (UTC+8)
     - cron: '0 1 * * *'
   workflow_dispatch:  # 允许手动触发
 
@@ -29,6 +29,8 @@ jobs:
           FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
           FEISHU_KEYWORD: ${{ secrets.FEISHU_KEYWORD }}
           SOURCES_JSON: ${{ secrets.SOURCES_JSON }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BIGMODEL_API_KEY: ${{ secrets.BIGMODEL_API_KEY }}
         run: |
           python -m bot.run
       
