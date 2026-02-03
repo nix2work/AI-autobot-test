@@ -1,9 +1,9 @@
-from __future__ import annotations
+ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
-from typing import Iterable, List, Dict
+from typing import Iterable, List, Dict, Optional
 
 import feedparser
 
@@ -32,31 +32,36 @@ def _parse_dt(entry) -> datetime:
 def fetch_items(sources: Iterable[Source]) -> List[Item]:
     items: List[Item] = []
     for src in sources:
-        # Note: feedparser.parse() doesn't support timeout parameter
-        feed = feedparser.parse(src.url, request_headers={"User-Agent": "aixux-digest-bot/1.0"})
-        for e in feed.entries or []:
-            title = (getattr(e, "title", "") or "").strip()
-            link = (getattr(e, "link", "") or "").strip()
-            if not title or not link:
-                continue
-            
-            # 提取描述（用于后续 AI 摘要）
-            description = ""
-            if hasattr(e, "summary"):
-                description = e.summary.strip()
-            elif hasattr(e, "description"):
-                description = e.description.strip()
-            
-            items.append(
-                Item(
-                    title=title,
-                    url=link,
-                    source_name=src.name,
-                    category=src.category,
-                    published_at=_parse_dt(e),
-                    description=description,
+        try:
+            # Note: feedparser.parse() doesn't support timeout parameter
+            feed = feedparser.parse(src.url, request_headers={"User-Agent": "aixux-digest-bot/1.0"})
+            for e in feed.entries or []:
+                title = (getattr(e, "title", "") or "").strip()
+                link = (getattr(e, "link", "") or "").strip()
+                if not title or not link:
+                    continue
+                
+                # 提取描述（用于后续 AI 摘要）
+                description = ""
+                if hasattr(e, "summary"):
+                    description = e.summary.strip()
+                elif hasattr(e, "description"):
+                    description = e.description.strip()
+                
+                items.append(
+                    Item(
+                        title=title,
+                        url=link,
+                        source_name=src.name,
+                        category=src.category,
+                        published_at=_parse_dt(e),
+                        description=description,
+                    )
                 )
-            )
+        except Exception as e:
+            print(f"  ⚠️ 抓取 {src.name} 失败: {e}")
+            continue
+    
     return items
 
 
@@ -167,12 +172,16 @@ def _has_ux_expert(text: str) -> bool:
     return any(expert in t for expert in UX_EXPERTS)
 
 
-def _calculate_score(item: Item) -> float:
+def _calculate_score(item: Item, max_age_days: int = 30) -> float:
     """
     综合评分系统（优化版）
     
     评分 = 关键词匹配(30%) + 时效性(50%) + 来源权重(20%)
            + UX专家加成 + vibe coding加成
+    
+    Args:
+        item: 文章项
+        max_age_days: 最大时间范围（用于计算时效性分数）
     """
     # 1. 关键词匹配得分
     category_keywords = KEYWORDS.get(item.category, [])
@@ -181,8 +190,9 @@ def _calculate_score(item: Item) -> float:
     # 2. 时效性得分（提高权重，越新越高）
     now = datetime.now(tz=timezone.utc)
     age_hours = (now - item.published_at).total_seconds() / 3600
-    # 24小时内=1.0, 72小时=0.7, 7天=0.3
-    recency_score = max(0, 1.0 - (age_hours / (7 * 24)))
+    max_hours = max_age_days * 24
+    # 线性递减：最新=1.0, 最旧=0.0
+    recency_score = max(0, 1.0 - (age_hours / max_hours))
     
     # 3. 来源权重
     source_weight = SOURCE_WEIGHTS.get(item.source_name, 1.0)
@@ -214,7 +224,8 @@ def _calculate_score(item: Item) -> float:
 def rank_and_filter(
     items: Iterable[Item],
     max_items: int = 8,
-    category_limits: Dict[str, int] = None
+    category_limits: Dict[str, int] = None,
+    time_limit_days: Optional[int] = None
 ) -> List[Item]:
     """
     智能排序和过滤
@@ -223,6 +234,7 @@ def rank_and_filter(
         items: 所有抓取的资讯
         max_items: 总数限制（默认 8）
         category_limits: 每个分类的限制（默认 AI:4, UX:4）
+        time_limit_days: 时间限制（天数），None 表示不限制
     
     Returns:
         排序后的资讯列表
@@ -234,11 +246,11 @@ def rank_and_filter(
             "ux": 4,
         }
     
-    # 过滤：保留 7 天内的内容
-    cutoff_time = datetime.now(tz=timezone.utc) - timedelta(days=7)
-    recent_items = [it for it in items if it.published_at >= cutoff_time]
-    
-    print(f"  过滤后剩余 {len(recent_items)} 条（7天内）")
+    # 时间过滤（如果指定）
+    filtered_items = items
+    if time_limit_days is not None:
+        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(days=time_limit_days)
+        filtered_items = [it for it in items if it.published_at >= cutoff_time]
     
     # 按分类分组
     by_category: Dict[str, List[tuple[float, datetime, Item]]] = {
@@ -246,9 +258,10 @@ def rank_and_filter(
         "ux": [],
     }
     
-    for item in recent_items:
+    for item in filtered_items:
         if item.category in by_category:
-            score = _calculate_score(item)
+            # 根据时间范围调整评分
+            score = _calculate_score(item, max_age_days=time_limit_days or 90)
             by_category[item.category].append((score, item.published_at, item))
     
     # 每个分类内排序：先按分数，再按时间
@@ -259,6 +272,7 @@ def rank_and_filter(
     result: List[Item] = []
     seen_urls = set()
     
+    # 严格按分类限制分配
     for category, limit in category_limits.items():
         count = 0
         for score, pub_time, item in by_category.get(category, []):
@@ -269,9 +283,8 @@ def rank_and_filter(
             count += 1
             if count >= limit:
                 break
-        print(f"  [{category.upper()}] 选取 {count} 条")
     
-    # 如果总数不够，从高分内容补充
+    # 如果某个分类不足，从高分内容补充
     if len(result) < max_items:
         all_remaining = []
         for category in by_category:
@@ -282,8 +295,6 @@ def rank_and_filter(
         all_remaining.sort(key=lambda x: (x[0], x[1]), reverse=True)
         
         need = max_items - len(result)
-        print(f"  补充 {min(need, len(all_remaining))} 条")
-        
         for score, pub_time, item in all_remaining[:need]:
             result.append(item)
             seen_urls.add(item.url)
