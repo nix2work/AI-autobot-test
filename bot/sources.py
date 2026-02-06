@@ -15,8 +15,7 @@ class Source:
 
 def default_sources() -> Dict[str, List[Source]]:
     """
-    默认资讯源 - UX 重点配置
-    优先选择稳定、高质量的 RSS 源
+    默认资讯源 - UX 重点配置（增强版）
     """
     return {
         "ai": [
@@ -26,28 +25,24 @@ def default_sources() -> Dict[str, List[Source]]:
             Source(name="Google AI Blog", url="https://blog.google/technology/ai/rss/", category="ai"),
         ],
         "ux": [
-            # 权威 UX 资源
+            # 核心 UX 资源（原有）
             Source(name="NNg", url="https://www.nngroup.com/feed/rss/", category="ux"),
             Source(name="UX Collective", url="https://uxdesign.cc/feed", category="ux"),
             Source(name="Smashing (UX)", url="https://www.smashingmagazine.com/category/ux/feed/", category="ux"),
-            # 注意：A List Apart 的 RSS 有时不稳定，可选添加
-            # Source(name="A List Apart", url="https://alistapart.com/main/feed/", category="ux"),
-        ],
-        "product": [
-            Source(name="Figma", url="https://www.figma.com/blog/rss/", category="product"),
-            Source(name="Atlassian Design", url="https://atlassian.design/blog/feed/", category="product"),
-            # Product Hunt 没有官方 RSS，需要通过其他方式获取
-            # 可以考虑使用 Mind the Product 等替代源
-            Source(name="Mind the Product", url="https://www.mindtheproduct.com/feed/", category="product"),
+            
+            # 新增 UX 资源（扩展）
+            Source(name="A List Apart", url="https://alistapart.com/main/feed/", category="ux"),
+            Source(name="UX Booth", url="https://www.uxbooth.com/feed/", category="ux"),
+            Source(name="UX Matters", url="https://www.uxmatters.com/index.xml", category="ux"),
+            
+            # 设计工具和平台
+            # Source(name="Figma Blog", url="https://www.figma.com/blog/rss/", category="ux"),
         ],
     }
 
 
 def load_sources_from_env() -> Optional[Dict[str, List[Source]]]:
-    """
-    从环境变量加载自定义源
-    格式：SOURCES_JSON='{"ai": [{"name": "Source", "url": "https://..."}], ...}'
-    """
+    """从环境变量加载自定义源"""
     raw = os.getenv("SOURCES_JSON")
     if not raw:
         return None
