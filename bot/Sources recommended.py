@@ -15,28 +15,38 @@ class Source:
 
 def default_sources() -> Dict[str, List[Source]]:
     """
-    默认资讯源 - UX 重点配置（增强版）
+    优化的资讯源配置
+    - AI 源增加到 8 个（覆盖 vibe coding、研究、工具）
+    - UX 源增加到 6 个（确保充足）
     """
     return {
         "ai": [
+            # 核心公司（必须）
             Source(name="OpenAI", url="https://openai.com/blog/rss/", category="ai"),
             Source(name="Anthropic", url="https://www.anthropic.com/news/rss.xml", category="ai"),
-            Source(name="Hugging Face", url="https://huggingface.co/blog/feed.xml", category="ai"),
             Source(name="Google AI Blog", url="https://blog.google/technology/ai/rss/", category="ai"),
+            
+            # 开源和工具（vibe coding 重点）
+            Source(name="Hugging Face", url="https://huggingface.co/blog/feed.xml", category="ai"),
+            Source(name="LangChain", url="https://blog.langchain.dev/rss/", category="ai"),
+            
+            # AI 编程工具
+            Source(name="GitHub AI Blog", url="https://github.blog/category/ai-and-ml/feed/", category="ai"),
+            Source(name="Replit Blog", url="https://blog.replit.com/feed.xml", category="ai"),
+            
+            # 研究前沿
+            Source(name="Meta AI", url="https://ai.meta.com/blog/rss/", category="ai"),
         ],
         "ux": [
-            # 核心 UX 资源（原有）
+            # 权威 UX 资源
             Source(name="NNg", url="https://www.nngroup.com/feed/rss/", category="ux"),
             Source(name="UX Collective", url="https://uxdesign.cc/feed", category="ux"),
             Source(name="Smashing (UX)", url="https://www.smashingmagazine.com/category/ux/feed/", category="ux"),
             
-            # 新增 UX 资源（扩展）
+            # 补充 UX 资源
             Source(name="A List Apart", url="https://alistapart.com/main/feed/", category="ux"),
             Source(name="UX Booth", url="https://www.uxbooth.com/feed/", category="ux"),
             Source(name="UX Matters", url="https://www.uxmatters.com/index.xml", category="ux"),
-            
-            # 设计工具和平台
-            # Source(name="Figma Blog", url="https://www.figma.com/blog/rss/", category="ux"),
         ],
     }
 
